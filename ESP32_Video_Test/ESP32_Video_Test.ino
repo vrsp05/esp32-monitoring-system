@@ -1,9 +1,8 @@
 #include "esp_camera.h"
 #include "FS.h"
 #include "SD_MMC.h"
-#include "avi_stapler.h" // Our custom flipbook maker
+#include "avi_stapler.h" 
 
-// --- CAMERA PIN BLUEPRINT ---
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -27,14 +26,12 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // 1. OPEN THE BACKPACK
-  // The 'true' at the end forces 1-bit mode, freeing Pin 4 and killing the flash!
+  // 1-Bit Mode to keep the strobe light OFF
   if (!SD_MMC.begin("/sdcard", true)) {
     Serial.println("ERROR: SD card failed to mount.");
     return;
   }
   
-  // 2. WAKE UP THE EYE
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -56,45 +53,48 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   
-  config.frame_size = FRAMESIZE_VGA; 
+  // THE STABILITY DOWNGRADE
+  config.frame_size = FRAMESIZE_QVGA;  // Smaller physical size
   config.pixel_format = PIXFORMAT_JPEG; 
-  config.jpeg_quality = 12;
-  config.fb_count = 2; // UPGRADE: 2 desks for faster processing!
+  config.jpeg_quality = 20;            // Higher number = lower quality / faster saves
+  config.fb_count = 2; 
 
   if (esp_camera_init(&config) != ESP_OK) {
     Serial.println("ERROR: Camera failed to initialize.");
     return;
   }
 
-  // 3. START THE MOVIE
-  Serial.println("ACTION! Recording 20-second video...");
+  Serial.println("ACTION! Recording 20-second video at exactly 10 FPS...");
   
   avi_file = SD_MMC.open("/test_video.avi", FILE_WRITE);
-  start_avi(avi_file); // Write the cover page
+  start_avi(avi_file);
   
   unsigned long start_time = millis();
+  unsigned long last_frame_time = 0;
   int frames_recorded = 0;
 
-  // 4. THE RECORDING LOOP (Run for exactly 20,000 milliseconds)
+  // THE METRONOME LOOP
   while (millis() - start_time < 20000) {
-    camera_fb_t * fb = esp_camera_fb_get();
-    if (!fb) {
-      Serial.println("Dropped a frame!");
-      continue;
+    // Only fire if 100 milliseconds have passed (10 FPS)
+    if (millis() - last_frame_time >= 100) {
+      last_frame_time = millis();
+      
+      camera_fb_t * fb = esp_camera_fb_get();
+      if (!fb) {
+        Serial.println("Dropped a frame!");
+        continue;
+      }
+
+      add_frame(avi_file, fb->buf, fb->len);
+      frames_recorded++;
+
+      esp_camera_fb_return(fb); 
     }
-
-    // Glue the picture into the flipbook
-    add_frame(avi_file, fb->buf, fb->len);
-    frames_recorded++;
-
-    esp_camera_fb_return(fb); // Clear the desk for the next photo
   }
 
-  // 5. CUT! END THE MOVIE
   end_avi(avi_file, frames_recorded); 
   Serial.printf("CUT! Video saved. Total frames: %d\n", frames_recorded);
 }
 
 void loop() {
-  // Empty
 }
