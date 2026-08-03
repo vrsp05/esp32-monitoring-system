@@ -47,11 +47,11 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // PIN 4 ISOLATION (Kills SD card interference)
+  // PIN 4 ISOLATION
   pinMode(4, OUTPUT);
   digitalWrite(4, LOW);
 
-  // EMI FIX: 20MHz SD bus speed in 1-Bit mode ('true')
+  // EMI FIX: 20MHz SD bus speed in 1-Bit mode
   if (!SD_MMC.begin("/sdcard", true, false, 20000)) { 
     Serial.println("CRITICAL ERROR: SD card failed to mount.");
     return;
@@ -81,12 +81,12 @@ void setup() {
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   
-  // THE 30 FPS HARDWARE TUNE
-  config.xclk_freq_hz = 20000000;       // 20MHz native clock required for 30 FPS
-  config.frame_size = FRAMESIZE_QVGA;   // 320x240 Resolution
+  // THE CIF 30 FPS TUNE
+  config.xclk_freq_hz = 20000000;       
+  config.frame_size = FRAMESIZE_CIF;   // Upgraded to CIF
   config.pixel_format = PIXFORMAT_JPEG; 
-  config.jpeg_quality = 12;             // High Quality
-  config.fb_count = 5;                  // 5 PSRAM Desks
+  config.jpeg_quality = 12;             
+  config.fb_count = 5;                  
 
   if (esp_camera_init(&config) != ESP_OK) {
     Serial.println("CRITICAL ERROR: Camera failed to initialize.");
@@ -102,7 +102,7 @@ void setup() {
 
   frame_queue = xQueueCreate(4, sizeof(camera_fb_t *));
 
-  Serial.println("ACTION! Recording 20-second 30 FPS video...");
+  Serial.println("ACTION! Recording 10-second CIF 30 FPS video...");
   
   avi_file = SD_MMC.open("/test_video.avi", FILE_WRITE);
   start_avi(avi_file);
@@ -122,8 +122,8 @@ void setup() {
   unsigned long start_time = millis();
   unsigned long last_frame_time = 0;
 
-  while (millis() - start_time < 20000) {
-    // 33 milliseconds = 30 Frames Per Second Metronome
+  // 10,000 milliseconds = 10 second duration
+  while (millis() - start_time < 10000) {
     if (millis() - last_frame_time >= 33) { 
       last_frame_time = millis();
       
