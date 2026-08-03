@@ -2,6 +2,9 @@
 #include "FS.h"
 #include "SD_MMC.h"
 #include "avi_stapler.h" 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
@@ -22,16 +25,42 @@
 
 File avi_file;
 
+QueueHandle_t frame_queue;
+volatile bool is_recording = false;
+int frames_recorded = 0;
+
+void sd_writer_task(void *pvParameters) {
+  camera_fb_t *fb;
+  
+  while (is_recording || uxQueueMessagesWaiting(frame_queue) > 0) {
+    if (xQueueReceive(frame_queue, &fb, pdMS_TO_TICKS(10)) == pdPASS) {
+      add_frame(avi_file, fb->buf, fb->len);
+      frames_recorded++;
+      esp_camera_fb_return(fb); 
+    }
+  }
+  
+  vTaskDelete(NULL);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // 1-Bit Mode to keep the strobe light OFF
-  if (!SD_MMC.begin("/sdcard", true)) {
-    Serial.println("ERROR: SD card failed to mount.");
+  // PIN 4 ISOLATION (Kills SD card interference)
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+
+  // EMI FIX: 20MHz SD bus speed in 1-Bit mode ('true')
+  if (!SD_MMC.begin("/sdcard", true, false, 20000)) { 
+    Serial.println("CRITICAL ERROR: SD card failed to mount.");
     return;
   }
-  
+  if (SD_MMC.cardType() == CARD_NONE) {
+    Serial.println("CRITICAL ERROR: No SD card inserted!");
+    return;
+  }
+
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -51,49 +80,77 @@ void setup() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
   
-  // THE STABILITY DOWNGRADE
-  config.frame_size = FRAMESIZE_QVGA;  // Smaller physical size
+  // THE 30 FPS HARDWARE TUNE
+  config.xclk_freq_hz = 20000000;       // 20MHz native clock required for 30 FPS
+  config.frame_size = FRAMESIZE_QVGA;   // 320x240 Resolution
   config.pixel_format = PIXFORMAT_JPEG; 
-  config.jpeg_quality = 20;            // Higher number = lower quality / faster saves
-  config.fb_count = 2; 
+  config.jpeg_quality = 12;             // High Quality
+  config.fb_count = 5;                  // 5 PSRAM Desks
 
   if (esp_camera_init(&config) != ESP_OK) {
-    Serial.println("ERROR: Camera failed to initialize.");
+    Serial.println("CRITICAL ERROR: Camera failed to initialize.");
     return;
   }
 
-  Serial.println("ACTION! Recording 20-second video at exactly 10 FPS...");
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_exposure_ctrl(s, 1); 
+  s->set_aec2(s, 1);          
+  s->set_whitebal(s, 1);
+  s->set_awb_gain(s, 1);
+  s->set_wb_mode(s, 0);       
+
+  frame_queue = xQueueCreate(4, sizeof(camera_fb_t *));
+
+  Serial.println("ACTION! Recording 20-second 30 FPS video...");
   
   avi_file = SD_MMC.open("/test_video.avi", FILE_WRITE);
   start_avi(avi_file);
   
+  is_recording = true;
+
+  xTaskCreatePinnedToCore(
+    sd_writer_task,   
+    "SD_Writer",      
+    4096,             
+    NULL,             
+    1,                
+    NULL,             
+    0                 
+  );
+
   unsigned long start_time = millis();
   unsigned long last_frame_time = 0;
-  int frames_recorded = 0;
 
-  // THE METRONOME LOOP
   while (millis() - start_time < 20000) {
-    // Only fire if 100 milliseconds have passed (10 FPS)
-    if (millis() - last_frame_time >= 100) {
+    // 33 milliseconds = 30 Frames Per Second Metronome
+    if (millis() - last_frame_time >= 33) { 
       last_frame_time = millis();
       
       camera_fb_t * fb = esp_camera_fb_get();
       if (!fb) {
-        Serial.println("Dropped a frame!");
+        Serial.println("Camera skipped a beat!");
         continue;
       }
 
-      add_frame(avi_file, fb->buf, fb->len);
-      frames_recorded++;
-
-      esp_camera_fb_return(fb); 
+      if (xQueueSend(frame_queue, &fb, 0) != pdPASS) {
+        Serial.println("WARNING: Conveyor belt backed up! Dropping frame.");
+        esp_camera_fb_return(fb); 
+      }
     }
   }
 
+  is_recording = false; 
+
+  Serial.println("Recording finished. Waiting for Core 0 to archive final frames...");
+  
+  while(uxQueueMessagesWaiting(frame_queue) > 0) {
+    delay(10);
+  }
+  delay(100); 
+
   end_avi(avi_file, frames_recorded); 
-  Serial.printf("CUT! Video saved. Total frames: %d\n", frames_recorded);
+  Serial.printf("CUT! Video successfully processed on Dual Cores. Total frames: %d\n", frames_recorded);
 }
 
 void loop() {
