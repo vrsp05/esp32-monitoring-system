@@ -1,0 +1,8 @@
+// Testing URLs
+[http://100.98.214.116:8000/upload/](http://100.98.214.116:8000/upload/)
+
+// Testing command
+curl.exe -X POST http://100.98.214.116:8000/upload/ -d "This is a fake string of ESP32 video bytes."
+
+// Initate server command
+python3 manage.py runserver 0.0.0.0:8000
