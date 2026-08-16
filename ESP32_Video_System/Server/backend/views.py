@@ -1,41 +1,39 @@
-import os
-import time
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.files.base import ContentFile
+from .models import ESP32Camera, VideoCapture
 
-# We disable CSRF protection here because our ESP32 is a simple edge device
-# and cannot easily negotiate complex web security tokens.
 @csrf_exempt
-def receive_video(request):
+def upload_video(request):
     if request.method == 'POST':
+        # 1. The Bouncer: Check for the secret ID in the HTTP Headers
+        device_id = request.headers.get('X-Device-ID')
+        
+        if not device_id:
+            return JsonResponse({"status": "error", "message": "Missing Device ID"}, status=400)
+            
+        # 2. The Verification: Does this camera actually exist in our database?
         try:
-            # 1. Grab the raw binary data the ESP32 just sent
-            video_data = request.body
+            camera = ESP32Camera.objects.get(device_id=device_id)
+        except ESP32Camera.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Invalid Device ID"}, status=403)
             
-            if not video_data:
-                return JsonResponse({'status': 'error', 'message': 'No video data received'}, status=400)
+        # 3. The Package: Get the raw video bytes from the ESP32
+        raw_video = request.body
+        
+        if not raw_video:
+            return JsonResponse({"status": "error", "message": "No video data received"}, status=400)
 
-            # 2. Define where to save the files (we will create this folder later)
-            save_directory = os.path.join('media', 'videos')
-            os.makedirs(save_directory, exist_ok=True)
+        # 4. The Vault: Save the video directly to the user's database profile
+        new_capture = VideoCapture(
+            user=camera.user,
+            camera=camera
+        )
+        # ContentFile converts the raw bytes into a format the database can store
+        new_capture.video_file.save(f"capture_{camera.device_id[-6:]}.avi", ContentFile(raw_video))
+        new_capture.save()
 
-            # 3. Create a unique filename using a timestamp so videos do not overwrite each other
-            timestamp = int(time.time())
-            filename = f"esp32_capture_{timestamp}.avi"
-            filepath = os.path.join(save_directory, filename)
+        return JsonResponse({"status": "success", "message": "Video safely routed to user account!"})
 
-            # 4. Open the file in 'Write Binary' (wb) mode and save the data
-            with open(filepath, 'wb') as f:
-                f.write(video_data)
-
-            print(f"SUCCESS: Saved new video -> {filename} ({len(video_data)} bytes)")
-            
-            # 5. Send a confirmation response back to the ESP32
-            return JsonResponse({'status': 'success', 'message': 'Video safely archived.'}, status=200)
-
-        except Exception as e:
-            print(f"ERROR: Failed to process upload: {e}")
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-            
-    # If a standard web browser accidentally tries to look at this URL (GET request)
-    return JsonResponse({'status': 'error', 'message': 'Only POST requests from ESP32 allowed'}, status=405)
+    # Reject standard web browser GET requests
+    return JsonResponse({"status": "error", "message": "Only POST requests from ESP32 allowed"}, status=405)

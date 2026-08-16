@@ -10,5 +10,5 @@ urlpatterns = [
     
     # This is the "Mailbox" address. 
     # When traffic hits /upload/, it triggers the receive_video logic.
-    path('upload/', views.receive_video, name='receive_video'),
+    path('upload/', views.upload_video, name='upload_video'),
 ]
