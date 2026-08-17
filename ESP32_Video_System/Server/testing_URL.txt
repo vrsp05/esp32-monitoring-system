@@ -3,6 +3,11 @@
 
 // Testing command
 curl.exe -X POST http://100.98.214.116:8000/upload/ -d "This is a fake string of ESP32 video bytes."
+curl.exe -X POST http://127.0.0.1:8000/upload/ -H "X-Device-ID: b83a65e2-362d-416b-b61d-c52cf33a263a" -d "Fake routed video bytes."
 
 // Initate server command
 python3 manage.py runserver 0.0.0.0:8000
+python manage.py runserver
+
+// Activate virtual environment
+.\venv\Scripts\activate
