@@ -7,11 +7,16 @@
 #include "freertos/queue.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "time.h"
+#include "driver/rtc_io.h"
 
 // --- 1. NETWORK & DELIVERY CREDENTIALS ---
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
-const char* server_url = "http://192.168.1.11:8000/upload/";
+const char* ssid = "Internet Orange";
+const char* password = "amamosrd";
+const char* server_url = "http://192.168.1.7:8000/upload/";
+
+// Add your unique Device ID right here:
+const String DEVICE_ID = "b83a65e2-362d-416b-b61d-c52cf33a263a";
 
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
@@ -29,6 +34,10 @@ const char* server_url = "http://192.168.1.11:8000/upload/";
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
+
+// --- TIMING CONSTANTS ---
+#define uS_TO_S_FACTOR 1000000ULL  // Conversion factor for micro seconds to seconds
+#define TIME_TO_SLEEP  900         // 15 minutes (900 seconds)
 
 File avi_file;
 QueueHandle_t frame_queue;
@@ -57,6 +66,32 @@ void sd_writer_task(void *pvParameters) {
   vTaskDelete(NULL);
 }
 
+void purgeOldVideos() {
+  Serial.println("Checking SD Card Backpack Buffer for expired files...");
+  time_t now;
+  time(&now);
+
+  File root = SD_MMC.open("/");
+  File file = root.openNextFile();
+  
+  while (file) {
+    if (!file.isDirectory()) {
+      String fileName = file.name();
+      if (fileName.endsWith(".avi")) {
+        time_t fileTime = file.getLastWrite();
+        double hoursOld = difftime(now, fileTime) / 3600.0;
+        
+        if (hoursOld > 0.02) {
+          Serial.printf("Deleting expired file: %s (%.1f hours old)\n", fileName.c_str(), hoursOld);
+          String filePath = "/" + fileName; 
+          SD_MMC.remove(filePath.c_str());
+        }
+      }
+    }
+    file = root.openNextFile();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -80,6 +115,19 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("\nSUCCESS: Wi-Fi Connected!");
+
+  // --- 4.5 SYNC REAL-WORLD TIME & PURGE ---
+  // Syncing to Mountain Time (Idaho) with Daylight Savings handling
+  configTzTime("MST7MDT,M3.2.0,M11.1.0", "pool.ntp.org");
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo, 10000)) {
+    Serial.println("Time officially synchronized via NTP!");
+  } else {
+    Serial.println("WARNING: Failed to sync time.");
+  }
+  
+  // Run the 72-hour hard drive sweep
+  purgeOldVideos();
 
   // --- 5. INITIALIZE CAMERA (CIF @ 30 FPS) ---
   camera_config_t config;
@@ -123,9 +171,13 @@ void setup() {
   frame_queue = xQueueCreate(4, sizeof(camera_fb_t *));
 
   // --- 6. RECORD THE VIDEO ---
-  Serial.println("ACTION! Recording 10-second video...");
+  // Generate a unique file name based on the current time
+  char dynamic_filename[64];
+  strftime(dynamic_filename, sizeof(dynamic_filename), "/capture_%m-%d-%Y_%I-%M-%p.avi", &timeinfo);
   
-  avi_file = SD_MMC.open("/latest_capture.avi", FILE_WRITE);
+  Serial.printf("ACTION! Recording 10-second video to %s...\n", dynamic_filename);
+  
+  avi_file = SD_MMC.open(dynamic_filename, FILE_WRITE); // Use the new string!
   start_avi(avi_file);
   
   is_recording = true;
@@ -154,7 +206,8 @@ void setup() {
   Serial.printf("CUT! Video saved. Total frames: %d\n", frames_recorded);
 
   // --- 7. HTTP POST TO DJANGO SERVER ---
-  File uploadFile = SD_MMC.open("/latest_capture.avi", FILE_READ);
+  // Tell the server which dynamic file to upload
+  File uploadFile = SD_MMC.open(dynamic_filename, FILE_READ);
   if (!uploadFile) {
     Serial.println("ERROR: Could not open file for uploading.");
     return;
@@ -164,6 +217,10 @@ void setup() {
   
   HTTPClient http;
   http.begin(server_url);
+  
+  // THE BOUNCER PASS: Inject your Device ID here
+  http.addHeader("X-Device-ID", DEVICE_ID); 
+  
   http.addHeader("Content-Type", "video/x-msvideo");
   
   int httpResponseCode = http.sendRequest("POST", &uploadFile, uploadFile.size());
@@ -179,8 +236,26 @@ void setup() {
   
   http.end();
   uploadFile.close();
+
+  // --- 8. INITIATE DEEP SLEEP ---
+  Serial.println("Powering down system to prevent overheating.");
+  Serial.println("Going to deep sleep for 15 minutes...");
+  
+  // Set the timer
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  
+  // Clear the serial buffer before shutting down
+  Serial.flush(); 
+  
+  // Lock the flash LED pin LOW so it doesn't drain battery while sleeping
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+  rtc_gpio_hold_en(GPIO_NUM_4); 
+
+  // Cut the power
+  esp_deep_sleep_start();
 }
 
 void loop() {
-  // Empty. The node goes to sleep or waits for reset after delivery.
+  // This will never be reached. The ESP32 reboots from scratch when it wakes up.
 }

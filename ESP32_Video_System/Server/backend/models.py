@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 import uuid
+from django.utils import timezone
 
 class ESP32Camera(models.Model):
     # Links this camera directly to a specific user account
@@ -35,5 +36,9 @@ class VideoCapture(models.Model):
     is_cloud_saved = models.BooleanField(default=False)
 
     def __str__(self):
-        # Formats the name exactly as Enmanuel needs it for the frontend
-        return f"{self.user.username}-{self.timestamp.strftime('%Y-%m-%d-%H-%M')}.mp4"
+        # Convert the internal UTC timestamp to your local Mountain Time
+        local_time = timezone.localtime(self.timestamp)
+
+        # Format it as: general182 - 08/16/2026 08:50 PM.mp4
+        formatted_time = local_time.strftime('%m/%d/%Y-%I:%M-%p')
+        return f"{self.user.username} - {formatted_time}.mp4"
