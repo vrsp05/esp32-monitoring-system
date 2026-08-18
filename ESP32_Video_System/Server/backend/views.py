@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files import File
 from .models import ESP32Camera, VideoCapture
+from django.utils import timezone
 
 @csrf_exempt
 def upload_video(request):
@@ -38,7 +39,8 @@ def upload_video(request):
         try:
             subprocess.run([
                 'ffmpeg', '-y', '-i', temp_avi_path, 
-                '-vcodec', 'libx264', # The standard web-friendly video codec
+                '-vcodec', 'libx264', 
+                '-pix_fmt', 'yuv420p', # <-- THE ENCODING FIX for Windows/Web playback
                 temp_mp4_path
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except subprocess.CalledProcessError:
@@ -50,8 +52,15 @@ def upload_video(request):
 
         # 5. The Vault: Save the newly converted .mp4 to the user's database
         new_capture = VideoCapture(user=camera.user, camera=camera)
+        
+        # --- THE FILENAME FIX ---
+        # Get the exact local time when the video arrives
+        local_time = timezone.localtime(timezone.now())
+        time_str = local_time.strftime('%m-%d-%Y_%I-%M-%p')
+        final_filename = f"capture_{time_str}.mp4"
+
         with open(temp_mp4_path, 'rb') as f:
-            new_capture.video_file.save(f"capture_{camera.device_id[-6:]}.mp4", File(f))
+            new_capture.video_file.save(final_filename, File(f))
         new_capture.save()
 
         # 6. Clean up: Delete the temporary files to prevent server hard drive overflow
@@ -61,3 +70,20 @@ def upload_video(request):
         return JsonResponse({"status": "success", "message": "Video converted to .mp4 and securely routed!"})
 
     return JsonResponse({"status": "error", "message": "Only POST requests allowed"}, status=405)
+
+def get_videos(request):
+    # Grab the 24 newest videos from the database
+    videos = VideoCapture.objects.all().order_by('-timestamp')[:24]
+    
+    video_list = []
+    for video in videos:
+        # Convert raw UTC to local Mountain Time
+        local_time = timezone.localtime(video.timestamp)
+        
+        video_list.append({
+            "id": video.id,
+            "url": video.video_file.url,
+            "timestamp": local_time.strftime('%m/%d/%Y %I:%M %p') # Use local_time here!
+        })
+        
+    return JsonResponse({"videos": video_list})

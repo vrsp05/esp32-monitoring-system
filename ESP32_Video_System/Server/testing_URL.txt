@@ -1,13 +1,36 @@
-// Testing URLs
-[http://100.98.214.116:8000/upload/](http://100.98.214.116:8000/upload/)
+The Startup Sequence
+Run these two commands to work on the project.
 
-// Testing command
-curl.exe -X POST http://100.98.214.116:8000/upload/ -d "This is a fake string of ESP32 video bytes."
+1. Activate the Virtual Environment
+.\venv\Scripts\activate
+
+(You will know it worked when you see `(venv)` appear in green at the start of your command line).
+
+2. Boot the Server
+python manage.py runserver 0.0.0.0:8000
+
+### 🌐 Essential URLs
+
+Once the server is running, these are the addresses you will need.
+
+Django Admin Dashboard (Local):
+[http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
+Upload Endpoint (Tailscale / Remote Network):
+[http://100.98.214.116:8000/upload/](http://100.98.214.116:8000/upload/)
+Upload Endpoint (Local Home Wi-Fi):
+[http://192.168.1.7:8000/upload/](http://192.168.1.7:8000/upload/)` *(Note: If your router reboots, this local IP might change).*
+
+---
+
+Testing (`curl` Commands)
+
+If you ever need to verify the server is catching files properly without having to power up the physical ESP32 camera, open a **second** PowerShell terminal, make sure your virtual environment is active, and run one of these payload tests.
+
+Test 1: Local Test
+(Use this if you are testing directly on the laptop that is running the server).
 curl.exe -X POST http://127.0.0.1:8000/upload/ -H "X-Device-ID: b83a65e2-362d-416b-b61d-c52cf33a263a" -d "Fake routed video bytes."
 
-// Initate server command
-python3 manage.py runserver 0.0.0.0:8000
-python manage.py runserver
 
-// Activate virtual environment
-.\venv\Scripts\activate
+Test 2: Remote / Tailscale Test
+(Use this if you are testing from a completely different computer connected via your Tailscale VPN).
+curl.exe -X POST http://100.98.214.116:8000/upload/ -H "X-Device-ID: b83a65e2-362d-416b-b61d-c52cf33a263a" -d "Fake routed video bytes via Tailscale."

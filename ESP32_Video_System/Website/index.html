@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Video Vault</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; padding: 20px; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .video-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+        .video-card { background-color: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+        video { width: 320px; border-radius: 5px; outline: none; }
+        .timestamp { margin-top: 0; font-size: 14px; color: #888; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>ESP32 Hardware Dashboard</h1>
+    <div class="video-grid" id="gallery"></div>
+
+    <script>
+        // 1. Fetch the data from your new Django API
+        fetch('http://127.0.0.1:8000/api/videos/')
+            .then(response => response.json())
+            .then(data => {
+                const gallery = document.getElementById('gallery');
+                
+                // 2. Loop through every video in the database
+                data.videos.forEach(video => {
+                    
+                    // Prepend the server IP so the browser knows exactly where the file is
+                    const fullVideoUrl = 'http://127.0.0.1:8000' + video.url;
+                    
+                    // 3. Inject the HTML for the video player
+                    gallery.innerHTML += `
+                        <div class="video-card">
+                            <p class="timestamp">Captured: ${video.timestamp}</p>
+                            <video controls preload="metadata">
+                                <source src="${fullVideoUrl}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                    `;
+                });
+            })
+            .catch(error => console.error('Error fetching videos:', error));
+    </script>
+
+</body>
+</html>
