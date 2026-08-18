@@ -16,6 +16,20 @@
 <body>
 
     <h1>ESP32 Hardware Dashboard</h1>
+
+    <div class="setup-box" style="background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; margin-bottom: 20px; text-align: center;">
+        <h2>Hardware Setup</h2>
+        <p style="color: #888;">Paste this exact Device ID into your <code>ESP32_Capture_Node.ino</code> file:</p>
+        
+        <div style="background-color: #121212; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
+            <code id="device-id" style="color: #4CAF50; font-size: 18px;">b83a65e2-362d-416b-b61d-c52cf33a263a</code>
+        </div>
+        <br>
+        <button onclick="copyToClipboard()" style="padding: 10px 20px; background-color: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+            Copy to Clipboard
+        </button>
+    </div>
+
     <div class="video-grid" id="gallery"></div>
 
     <script>
@@ -44,6 +58,16 @@
                 });
             })
             .catch(error => console.error('Error fetching videos:', error));
+        
+        
+        function copyToClipboard() {
+            const idText = document.getElementById("device-id").innerText;
+            navigator.clipboard.writeText(idText).then(() => {
+                alert("Device ID copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy text: ", err);
+            });
+        }
     </script>
 
 </body>
