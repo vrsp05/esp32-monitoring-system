@@ -6,6 +6,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.files import File
 from .models import ESP32Camera, VideoCapture
 from django.utils import timezone
+import json
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 def upload_video(request):
@@ -87,3 +91,41 @@ def get_videos(request):
         })
         
     return JsonResponse({"videos": video_list})
+
+# --- AUTHENTICATION ENDPOINTS ---
+
+# Note: @csrf_exempt is used here so your static HTML file can easily 
+# talk to the server. Enmanuel will secure this later in Next.js!
+@csrf_exempt
+def api_signup(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+            
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({"status": "error", "message": "Username already exists."}, status=400)
+            
+            # Create the user in the database
+            user = User.objects.create_user(username=username, password=password)
+            return JsonResponse({"status": "success", "message": "Account created!"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def api_login(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        username = data.get('username')
+        password = data.get('password')
+        
+        # Check if the credentials match the database
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return JsonResponse({"status": "success", "message": "Logged in successfully!"})
+        else:
+            return JsonResponse({"status": "error", "message": "Invalid username or password."}, status=400)
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)

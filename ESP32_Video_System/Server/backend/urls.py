@@ -14,6 +14,8 @@ urlpatterns = [
     # When traffic hits /upload/, it triggers the receive_video logic.
     path('upload/', views.upload_video, name='upload_video'),
     path('api/videos/', views.get_videos, name='get_videos'),
+    path('api/signup/', views.api_signup, name='api_signup'), 
+    path('api/login/', views.api_login, name='api_login'),    
 ]
 
 if settings.DEBUG:
