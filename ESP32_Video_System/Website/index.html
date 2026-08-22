@@ -15,7 +15,13 @@
 </head>
 <body>
 
-    <h1>ESP32 Hardware Dashboard</h1>
+    <h1 style="display: flex; justify-content: space-between; align-items: center;">
+        ESP32 Hardware Dashboard
+        <div style="font-size: 16px;">
+            <a href="vault.html" style="color: #2196F3; text-decoration: none; margin-right: 15px;">View Cloud Vault →</a>
+            <button onclick="logout()" style="background-color: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">Logout</button>
+        </div>
+    </h1>
 
     <div class="setup-box" style="background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; margin-bottom: 20px; text-align: center;">
         <h2>Hardware Setup</h2>
@@ -33,19 +39,39 @@
     <div class="video-grid" id="gallery"></div>
 
     <script>
-        // 1. Fetch the data from your new Django API
-        fetch('http://127.0.0.1:8000/api/videos/')
+        // 1. Pull the user's info from local storage FIRST
+        const currentUsername = localStorage.getItem('username');
+        const currentDeviceId = localStorage.getItem('device_id');
+
+        // If they aren't logged in, kick them back to the login screen
+        if (!currentUsername) {
+            window.location.href = 'login.html';
+        }
+
+        // Inject their actual Device ID into the green code block
+        document.getElementById('device-id').innerText = currentDeviceId;
+
+        // 2. NOW Fetch the data from your Django API
+        fetch(`http://127.0.0.1:8000/api/videos/?user=${currentUsername}`)
             .then(response => response.json())
             .then(data => {
                 const gallery = document.getElementById('gallery');
                 
-                // 2. Loop through every video in the database
+                // Loop through every video in the database
                 data.videos.forEach(video => {
                     
                     // Prepend the server IP so the browser knows exactly where the file is
                     const fullVideoUrl = 'http://127.0.0.1:8000' + video.url;
                     
-                    // 3. Inject the HTML for the video player
+                    // Check if it's already saved so we can disable the button
+                    const vaultBtnText = video.is_cloud_saved ? "🔒 Saved to Vault" : "💾 Save to Vault";
+                    const vaultBtnDisabled = video.is_cloud_saved ? "disabled" : "";
+                    const btnColor = video.is_cloud_saved ? "#555" : "#2196F3";
+
+                    // Grab just the filename for the download prompt
+                    const fileName = video.url.split('/').pop(); 
+
+                    // Inject the HTML for the video player and buttons
                     gallery.innerHTML += `
                         <div class="video-card">
                             <p class="timestamp">Captured: ${video.timestamp}</p>
@@ -53,12 +79,20 @@
                                 <source src="${fullVideoUrl}" type="video/mp4">
                                 Your browser does not support the video tag.
                             </video>
+                            
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button onclick="downloadVideo('${fullVideoUrl}', '${fileName}')" style="flex: 1; padding: 8px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    ⬇️ Download
+                                </button>
+                                <button ${vaultBtnDisabled} onclick="saveVideo(${video.id})" style="flex: 1; padding: 8px; background-color: ${btnColor}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    ${vaultBtnText}
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
             })
             .catch(error => console.error('Error fetching videos:', error));
-        
         
         function copyToClipboard() {
             const idText = document.getElementById("device-id").innerText;
@@ -67,6 +101,47 @@
             }).catch(err => {
                 console.error("Failed to copy text: ", err);
             });
+        }
+
+        function saveVideo(videoId) {
+            fetch(`http://127.0.0.1:8000/api/vault/save/${videoId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUsername })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message); // Will show success, or "Vault is full!" error
+                if(data.status === 'success') {
+                    location.reload(); // Refresh the page to update the button color
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // --- LOGOUT LOGIC ---
+        function logout() {
+            localStorage.removeItem('username');
+            localStorage.removeItem('device_id');
+            window.location.href = 'login.html';
+        }
+
+        // --- DOWNLOAD LOGIC ---
+        function downloadVideo(url, filename) {
+            // Fetch the video file as a "blob" (raw data) to force the browser to download it
+            fetch(url)
+                .then(response => response.blob())
+                .then(blob => {
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click(); // Simulate a click on the hidden link
+                    a.remove();
+                    window.URL.revokeObjectURL(blobUrl); // Clean up browser memory
+                })
+                .catch(error => console.error('Download error:', error));
         }
     </script>
 

@@ -76,18 +76,24 @@ def upload_video(request):
     return JsonResponse({"status": "error", "message": "Only POST requests allowed"}, status=405)
 
 def get_videos(request):
-    # Grab the 24 newest videos from the database
-    videos = VideoCapture.objects.all().order_by('-timestamp')[:24]
+    # 1. Catch the username from the frontend request
+    username = request.GET.get('user')
+    
+    # 2. Filter the database to ONLY grab this specific user's videos
+    if username:
+        videos = VideoCapture.objects.filter(user__username=username).order_by('-timestamp')[:24]
+    else:
+        videos = [] # Return nothing if no user is provided
     
     video_list = []
     for video in videos:
-        # Convert raw UTC to local Mountain Time
         local_time = timezone.localtime(video.timestamp)
         
         video_list.append({
             "id": video.id,
             "url": video.video_file.url,
-            "timestamp": local_time.strftime('%m/%d/%Y %I:%M %p') # Use local_time here!
+            "timestamp": local_time.strftime('%m/%d/%Y %I:%M %p'),
+            "is_cloud_saved": video.is_cloud_saved
         })
         
     return JsonResponse({"videos": video_list})
@@ -125,7 +131,72 @@ def api_login(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return JsonResponse({"status": "success", "message": "Logged in successfully!"})
+            
+            # Fetch the user's camera using your custom related_name
+            camera = user.cameras.first() 
+            device_id = camera.device_id if camera else "No Camera Registered"
+
+            return JsonResponse({
+                "status": "success", 
+                "message": "Logged in successfully!",
+                "username": user.username,
+                "device_id": str(device_id)
+            })
         else:
             return JsonResponse({"status": "error", "message": "Invalid username or password."}, status=400)
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def save_to_vault(request, video_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            
+            # Locate the specific video belonging to this user
+            video = VideoCapture.objects.get(id=video_id, user__username=username)
+            
+            # Enforce the 10-video limit
+            saved_count = VideoCapture.objects.filter(user__username=username, is_cloud_saved=True).count()
+            
+            if saved_count >= 10 and not video.is_cloud_saved:
+                return JsonResponse({"status": "error", "message": "Vault is full! Maximum 10 videos allowed."}, status=400)
+            
+            # Save it to the vault
+            video.is_cloud_saved = True
+            video.save()
+            return JsonResponse({"status": "success", "message": "Video permanently saved to Cloud Vault."})
+            
+        except VideoCapture.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Video not found."}, status=404)
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+            
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def delete_video(request, video_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            
+            # Locate the video
+            video = VideoCapture.objects.get(id=video_id, user__username=username)
+            
+            # 1. DELETE THE PHYSICAL .MP4 FILE FROM THE HARD DRIVE
+            if video.video_file:
+                if os.path.isfile(video.video_file.path):
+                    os.remove(video.video_file.path)
+            
+            # 2. DELETE THE RECORD FROM THE DATABASE
+            video.delete() 
+            
+            return JsonResponse({"status": "success", "message": "Video permanently deleted."})
+            
+        except VideoCapture.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Video not found."}, status=404)
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+            
     return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
