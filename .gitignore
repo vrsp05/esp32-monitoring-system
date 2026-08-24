@@ -216,3 +216,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Python & Virtual Environments
+venv/
+__pycache__/
+*.pyc
+
+# Database & Media (Do not push your local test data!)
+db.sqlite3
+media/
+videos/
+*.mp4
+*.avi
+
+# OS Files
+.DS_Store
+Thumbs.db
