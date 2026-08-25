@@ -52,7 +52,7 @@
         document.getElementById('device-id').innerText = currentDeviceId;
 
         // 2. NOW Fetch the data from your Django API
-        fetch(`http://127.0.0.1:8000/api/videos/?user=${currentUsername}`)
+        fetch(`/api/videos/?user=${currentUsername}`)
             .then(response => response.json())
             .then(data => {
                 const gallery = document.getElementById('gallery');
@@ -61,7 +61,7 @@
                 data.videos.forEach(video => {
                     
                     // Prepend the server IP so the browser knows exactly where the file is
-                    const fullVideoUrl = 'http://127.0.0.1:8000' + video.url;
+                    const fullVideoUrl = video.url;
                     
                     // Check if it's already saved so we can disable the button
                     const vaultBtnText = video.is_cloud_saved ? "🔒 Saved to Vault" : "💾 Save to Vault";
@@ -104,7 +104,7 @@
         }
 
         function saveVideo(videoId) {
-            fetch(`http://127.0.0.1:8000/api/vault/save/${videoId}/`, {
+            fetch(`/api/vault/save/${videoId}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: currentUsername })

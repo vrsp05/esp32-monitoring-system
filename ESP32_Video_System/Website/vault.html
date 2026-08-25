@@ -27,7 +27,7 @@
         if (!currentUsername) window.location.href = 'login.html';
 
         // Fetch all videos, but filter for ONLY cloud saved ones
-        fetch(`http://127.0.0.1:8000/api/videos/?user=${currentUsername}`)
+        fetch(`/api/videos/?user=${currentUsername}`)
             .then(response => response.json())
             .then(data => {
                 const gallery = document.getElementById('vault-gallery');
@@ -41,7 +41,7 @@
                 }
 
                 vaultVideos.forEach(video => {
-                    const fullVideoUrl = 'http://127.0.0.1:8000' + video.url;
+                    const fullVideoUrl = video.url;
                     // Grab just the filename from the URL for the delete prompt
                     const fileName = video.url.split('/').pop(); 
                     
@@ -65,7 +65,7 @@
             const userConfirmed = confirm(`Are you sure you want to delete ${videoName}?`);
             
             if (userConfirmed) {
-                fetch(`http://127.0.0.1:8000/api/vault/delete/${videoId}/`, {
+                fetch(`/api/vault/delete/${videoId}/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: currentUsername })
