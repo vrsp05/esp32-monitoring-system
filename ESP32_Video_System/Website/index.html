@@ -50,7 +50,7 @@
 
         // Inject their actual Device ID into the green code block
         // 1. Show the ID if it exists, otherwise show a Generate button
-        if (!currentDeviceId || currentDeviceId === "null" || currentDeviceId === "undefined") {
+        if (!currentDeviceId || currentDeviceId === "null" || currentDeviceId === "undefined" || currentDeviceId === "No Camera Registered") {
             document.getElementById('device-id').innerHTML = `<button onclick="generateDeviceID()" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Generate Device ID</button>`;
         } else {
             document.getElementById('device-id').innerText = currentDeviceId;
