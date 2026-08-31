@@ -34,3 +34,6 @@ curl.exe -X POST http://127.0.0.1:8000/upload/ -H "X-Device-ID: b83a65e2-362d-41
 Test 2: Remote / Tailscale Test
 (Use this if you are testing from a completely different computer connected via your Tailscale VPN).
 curl.exe -X POST http://100.98.214.116:8000/upload/ -H "X-Device-ID: b83a65e2-362d-416b-b61d-c52cf33a263a" -d "Fake routed video bytes via Tailscale."
+
+
+Super user is needed to create Django database
