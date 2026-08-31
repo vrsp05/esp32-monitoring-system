@@ -9,7 +9,7 @@ from django.utils import timezone
 import json
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
-from django.views.decorators.csrf import csrf_exempt
+import uuid
 
 @csrf_exempt
 def upload_video(request):
@@ -200,3 +200,31 @@ def delete_video(request, video_id):
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
             
     return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def generate_camera_id(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        username = data.get('username')
+        
+        try:
+            # Find the user in the database
+            user = User.objects.get(username=username)
+            
+            # Generate a fresh, random UUID
+            new_device_id = str(uuid.uuid4())
+            
+            # Create and save the new camera entry linked to this user
+            ESP32Camera.objects.create(user=user, device_id=new_device_id)
+            
+            # Send the new ID back to the website
+            return JsonResponse({
+                'status': 'success', 
+                'device_id': new_device_id,
+                'message': 'Camera registered successfully!'
+            })
+            
+        except User.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'User not found.'})
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'})
