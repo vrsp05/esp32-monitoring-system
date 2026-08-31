@@ -13,10 +13,10 @@
 // --- 1. NETWORK & DELIVERY CREDENTIALS ---
 const char* ssid = "Internet Orange";
 const char* password = "amamosrd";
-const char* server_url = "http://192.168.1.7:8000/upload/";
+const char* server_url = "http://192.168.1.6/upload/";
 
 // Add your unique Device ID right here:
-const String DEVICE_ID = "b83a65e2-362d-416b-b61d-c52cf33a263a";
+const String DEVICE_ID = "dadce4de-bc02-4807-b894-65080a6c627a";
 
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
@@ -81,7 +81,7 @@ void purgeOldVideos() {
         time_t fileTime = file.getLastWrite();
         double hoursOld = difftime(now, fileTime) / 3600.0;
         
-        if (hoursOld > 0.02) {
+        if (hoursOld > 72.0) {
           Serial.printf("Deleting expired file: %s (%.1f hours old)\n", fileName.c_str(), hoursOld);
           String filePath = "/" + fileName; 
           SD_MMC.remove(filePath.c_str());
