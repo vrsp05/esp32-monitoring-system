@@ -126,6 +126,9 @@
                 .catch(error => console.error('Download error:', error));
         }
 
+        let currentPage = 1;
+        const videosPerPage = 5;
+
         function loadVideos() {
             fetch(`/api/videos/?user=${currentUsername}`)
                 .then(response => response.json())
@@ -133,7 +136,17 @@
                     const gallery = document.getElementById('gallery');
                     gallery.innerHTML = ""; // Clear the old videos before loading the new ones
                     
-                    data.videos.forEach(video => {
+                    // 1. Calculate pagination bounds
+                    const totalVideos = data.videos.length;
+                    const totalPages = Math.ceil(totalVideos / videosPerPage);
+                    const startIndex = (currentPage - 1) * videosPerPage;
+                    const endIndex = startIndex + videosPerPage;
+                    
+                    // 2. Slice the array to only grab 5 videos
+                    const pageVideos = data.videos.slice(startIndex, endIndex);
+                    
+                    // 3. Render only the sliced videos
+                    pageVideos.forEach(video => {
                         const fullVideoUrl = video.url;
                         const vaultBtnText = video.is_cloud_saved ? "🔒 Saved to Vault" : "💾 Save to Vault";
                         const vaultBtnDisabled = video.is_cloud_saved ? "disabled" : "";
@@ -159,12 +172,28 @@
                             </div>
                         `;
                     });
+
+                    // 4. Inject Pagination Controls at the bottom
+                    gallery.innerHTML += `
+                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 10px; background-color: #1e1e1e; border-radius: 8px; border: 1px solid #333;">
+                            <button ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(-1)" style="padding: 10px 20px; background-color: ${currentPage === 1 ? '#555' : '#2196F3'}; color: white; border: none; border-radius: 5px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-weight: bold;">
+                                ← Previous
+                            </button>
+                            <span style="font-weight: bold;">Page ${currentPage} of ${totalPages || 1}</span>
+                            <button ${currentPage >= totalPages ? 'disabled' : ''} onclick="changePage(1)" style="padding: 10px 20px; background-color: ${currentPage >= totalPages ? '#555' : '#2196F3'}; color: white; border: none; border-radius: 5px; cursor: ${currentPage >= totalPages ? 'not-allowed' : 'pointer'}; font-weight: bold;">
+                                Next →
+                            </button>
+                        </div>
+                    `;
                 })
                 .catch(error => console.error('Error fetching videos:', error));
         }
 
-    // Load videos immediately when the page opens
-    loadVideos();
+        // 5. Helper function to flip pages
+        function changePage(direction) {
+            currentPage += direction;
+            loadVideos();
+        }
 
     // Automatically reload the videos every 15 seconds
     setInterval(loadVideos, 15000);

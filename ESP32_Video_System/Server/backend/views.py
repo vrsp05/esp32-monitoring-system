@@ -103,22 +103,31 @@ def get_videos(request):
 # Note: @csrf_exempt is used here so your static HTML file can easily 
 # talk to the server. Enmanuel will secure this later in Next.js!
 @csrf_exempt
-def api_signup(request):
+def signup(request):
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            username = data.get('username')
-            password = data.get('password')
-            
-            if User.objects.filter(username=username).exists():
-                return JsonResponse({"status": "error", "message": "Username already exists."}, status=400)
-            
-            # Create the user in the database
-            user = User.objects.create_user(username=username, password=password)
-            return JsonResponse({"status": "success", "message": "Account created!"})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+        data = json.loads(request.body)
+        username = data.get('username')
+        password = data.get('password')
+
+        # 1. Enforce 5-character minimum password length
+        if len(password) < 5:
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'Password must be at least 5 characters long.'
+            })
+
+        # 2. Prevent duplicate usernames
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'Username is already taken. Please choose another.'
+            })
+
+        # 3. Create the account if both security checks pass
+        user = User.objects.create_user(username=username, password=password)
+        user.save()
+        
+        return JsonResponse({'status': 'success'})
 
 @csrf_exempt
 def api_login(request):
