@@ -158,3 +158,50 @@ class MiniSentinelSecurityTests(TestCase):
         data = response.json()
         self.assertEqual(data['status'], 'success')
         self.assertEqual(data['device_id'], 'fake-uuid-5678')
+
+class DeviceManagementTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.test_user = User.objects.create_user(username="general182", password="validpassword123")
+
+    def test_device_creation_and_limit(self):
+        # 1. Create the first 3 devices (Should Succeed)
+        for i in range(3):
+            response = self.client.post('/api/camera/create/', json.dumps({
+                'username': 'general182'
+            }), content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+
+        # 2. Attempt to create a 4th device (Should Fail)
+        response_fail = self.client.post('/api/camera/create/', json.dumps({
+            'username': 'general182'
+        }), content_type='application/json')
+        
+        data = response_fail.json()
+        self.assertEqual(response_fail.status_code, 400)
+        self.assertIn('Maximum of 3 devices allowed', data['message'])
+
+    def test_get_devices_list(self):
+        # Manually create a test device
+        ESP32Camera.objects.create(user=self.test_user, device_id="fake-uuid-123", name="Camera 1")
+        
+        response = self.client.get('/api/devices/?user=general182')
+        data = response.json()
+        
+        # Verify the API returns exactly 1 device with the correct generated data
+        self.assertEqual(len(data['devices']), 1)
+        self.assertEqual(data['devices'][0]['name'], 'Camera 1')
+        self.assertEqual(data['devices'][0]['video_count'], 0)
+
+    def test_delete_device_security(self):
+        # Create a device to delete
+        camera = ESP32Camera.objects.create(user=self.test_user, device_id="delete-me-uuid")
+        
+        response = self.client.post(f'/api/camera/delete/{camera.id}/', json.dumps({
+            'username': 'general182'
+        }), content_type='application/json')
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify the database is actually empty
+        self.assertEqual(ESP32Camera.objects.count(), 0)

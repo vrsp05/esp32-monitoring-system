@@ -13,7 +13,7 @@
 // --- 1. NETWORK & DELIVERY CREDENTIALS ---
 const char* ssid = "Internet Orange";
 const char* password = "amamosrd";
-const char* server_url = "http://192.168.1.6/upload/";
+const char* server_url = "http://vrsp-linux-server.tail0a3e2c.ts.net/upload/";
 
 // Add your unique Device ID right here:
 const String DEVICE_ID = "dadce4de-bc02-4807-b894-65080a6c627a";
@@ -106,22 +106,32 @@ void setup() {
     return;
   }
 
-  // --- 4. CONNECT TO WI-FI FIRST (Maximum Power Stress) ---
+// --- 4. CONNECT TO WI-FI FIRST (Maximum Power Stress) ---
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.print("Connecting to Local Wi-Fi...");
-  while (WiFi.status() != WL_CONNECTED) {
+  
+  int wifi_attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && wifi_attempts < 40) { // 20-second timeout
     delay(500);
     Serial.print(".");
+    wifi_attempts++;
   }
-  Serial.println("\nSUCCESS: Wi-Fi Connected!");
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nSUCCESS: Wi-Fi Connected!");
+  } else {
+    Serial.println("\nWARNING: Wi-Fi timed out. Proceeding in Offline Mode.");
+  }
 
-  // --- 4.5 SYNC REAL-WORLD TIME & PURGE ---
-  // Syncing to Mountain Time (Idaho) with Daylight Savings handling
-  configTzTime("MST7MDT,M3.2.0,M11.1.0", "pool.ntp.org");
+1// --- 4.5 SYNC REAL-WORLD TIME & PURGE ---
+  if (WiFi.status() == WL_CONNECTED) {
+    configTzTime("MST7MDT,M3.2.0,M11.1.0", "pool.ntp.org");
+  }
+  
   struct tm timeinfo;
   if (getLocalTime(&timeinfo, 10000)) {
-    Serial.println("Time officially synchronized via NTP!");
+    Serial.println("Time verified!");
   } else {
     Serial.println("WARNING: Failed to sync time.");
   }
@@ -207,35 +217,36 @@ void setup() {
 
   // --- 7. HTTP POST TO DJANGO SERVER ---
   // Tell the server which dynamic file to upload
-  File uploadFile = SD_MMC.open(dynamic_filename, FILE_READ);
-  if (!uploadFile) {
-    Serial.println("ERROR: Could not open file for uploading.");
-    return;
-  }
+  if (WiFi.status() == WL_CONNECTED) {
+    File uploadFile = SD_MMC.open(dynamic_filename, FILE_READ);
+    if (!uploadFile) {
+      Serial.println("ERROR: Could not open file for uploading.");
+      return;
+    }
 
-  Serial.println("Starting HTTP POST Delivery to Home Server...");
-  
-  HTTPClient http;
-  http.begin(server_url);
-  
-  // THE BOUNCER PASS: Inject your Device ID here
-  http.addHeader("X-Device-ID", DEVICE_ID); 
-  
-  http.addHeader("Content-Type", "video/x-msvideo");
-  
-  int httpResponseCode = http.sendRequest("POST", &uploadFile, uploadFile.size());
-  
-  if (httpResponseCode > 0) {
-    Serial.printf("HTTP Response code: %d\n", httpResponseCode);
-    Serial.println("SUCCESS: Video delivered to Django!");
-    signalSuccess(); 
+    Serial.println("Starting HTTP POST Delivery to Home Server...");
+    HTTPClient http;
+    http.begin(server_url);
+    
+    http.addHeader("X-Device-ID", DEVICE_ID); 
+    http.addHeader("Content-Type", "video/x-msvideo");
+    
+    int httpResponseCode = http.sendRequest("POST", &uploadFile, uploadFile.size());
+    
+    if (httpResponseCode > 0) {
+      Serial.printf("HTTP Response code: %d\n", httpResponseCode);
+      Serial.println("SUCCESS: Video delivered to Django!");
+      signalSuccess(); 
+    } else {
+      Serial.printf("Error code: %d\n", httpResponseCode);
+      Serial.println("FAILED: Could not deliver video.");
+    }
+    
+    http.end();
+    uploadFile.close();
   } else {
-    Serial.printf("Error code: %d\n", httpResponseCode);
-    Serial.println("FAILED: Could not deliver video.");
+    Serial.println("Offline Mode: Upload skipped. Video buffered safely on SD card.");
   }
-  
-  http.end();
-  uploadFile.close();
 
   // --- 8. INITIATE DEEP SLEEP ---
   Serial.println("Powering down system to prevent overheating.");

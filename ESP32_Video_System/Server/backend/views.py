@@ -211,22 +211,31 @@ def delete_video(request, video_id):
     return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
 
 @csrf_exempt
+@csrf_exempt
 def generate_camera_id(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         username = data.get('username')
         
         try:
-            # Find the user in the database
             user = User.objects.get(username=username)
             
-            # Generate a fresh, random UUID
+            # 1. Enforce the 3-device maximum limit
+            if ESP32Camera.objects.filter(user=user).count() >= 3:
+                return JsonResponse({'status': 'error', 'message': 'Device limit reached. Maximum of 3 devices allowed.'}, status=400)
+            
             new_device_id = str(uuid.uuid4())
             
-            # Create and save the new camera entry linked to this user
-            ESP32Camera.objects.create(user=user, device_id=new_device_id)
+            # Dynamically name the camera based on how many the user already has
+            camera_count = ESP32Camera.objects.filter(user=user).count() + 1
+            camera_name = f"Camera {camera_count}"
             
-            # Send the new ID back to the website
+            ESP32Camera.objects.create(
+                user=user, 
+                device_id=new_device_id,
+                name=camera_name
+            )
+            
             return JsonResponse({
                 'status': 'success', 
                 'device_id': new_device_id,
@@ -234,6 +243,49 @@ def generate_camera_id(request):
             })
             
         except User.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'User not found.'})
+            return JsonResponse({'status': 'error', 'message': 'User not found.'}, status=404)
             
-    return JsonResponse({'status': 'error', 'message': 'Invalid request.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=405)
+
+def get_devices(request):
+    username = request.GET.get('user')
+    if not username:
+        return JsonResponse({"devices": []})
+    
+    try:
+        user = User.objects.get(username=username)
+        cameras = ESP32Camera.objects.filter(user=user).order_by('-date_added')
+        
+        device_list = []
+        for cam in cameras:
+            local_time = timezone.localtime(cam.date_added)
+            device_list.append({
+                "id": cam.id,
+                "device_id": cam.device_id,
+                "name": cam.name,
+                "status": cam.status,
+                "storage_space": cam.storage_space,
+                "date_added": local_time.strftime('%m/%d/%Y %I:%M %p'),
+                # Dynamically count the videos associated with this specific camera
+                "video_count": cam.captures.count() 
+            })
+        return JsonResponse({"devices": device_list})
+    except User.DoesNotExist:
+        return JsonResponse({"devices": []})
+
+@csrf_exempt
+def delete_device(request, device_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            
+            # Ensure the device belongs to the correct user before deleting
+            camera = ESP32Camera.objects.get(id=device_id, user__username=username)
+            camera.delete()
+            
+            return JsonResponse({"status": "success", "message": "Device deleted."})
+        except ESP32Camera.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Device not found."}, status=404)
+            
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
