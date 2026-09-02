@@ -14,6 +14,10 @@ class ESP32Camera(models.Model):
     name = models.CharField(max_length=50, default="New Camera")
     
     date_added = models.DateTimeField(auto_now_add=True)
+    
+    # --- NEW FIELDS FOR DEVICE MANAGEMENT ---
+    status = models.CharField(max_length=20, default='Inactive') 
+    storage_space = models.CharField(max_length=50, default='Unknown')
 
     def __str__(self):
         return f"{self.name} - {self.device_id}"
@@ -24,7 +28,8 @@ class VideoCapture(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='videos')
     
     # Links the video to the specific camera that recorded it
-    camera = models.ForeignKey(ESP32Camera, on_delete=models.CASCADE, related_name='captures')
+    # SET_NULL protects your videos from being deleted if you remove the camera
+    camera = models.ForeignKey(ESP32Camera, on_delete=models.SET_NULL, null=True, related_name='captures')
     
     # Where the file is physically stored on the server's hard drive
     video_file = models.FileField(upload_to='videos/')

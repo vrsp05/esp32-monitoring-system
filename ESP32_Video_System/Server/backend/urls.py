@@ -19,6 +19,8 @@ urlpatterns = [
     path('api/vault/save/<int:video_id>/', views.save_to_vault, name='save_to_vault'),
     path('api/vault/delete/<int:video_id>/', views.delete_video, name='delete_video'),
     path('api/camera/create/', views.generate_camera_id, name='generate_camera'),
+    path('api/devices/', views.get_devices, name='get_devices'),
+    path('api/camera/delete/<int:device_id>/', views.delete_device, name='delete_device'),
 ]
 
 if settings.DEBUG:
