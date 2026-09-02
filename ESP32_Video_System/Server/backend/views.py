@@ -114,14 +114,14 @@ def signup(request):
             return JsonResponse({
                 'status': 'error', 
                 'message': 'Password must be at least 5 characters long.'
-            })
+            }, status=400)
 
         # 2. Prevent duplicate usernames
         if User.objects.filter(username=username).exists():
             return JsonResponse({
                 'status': 'error', 
                 'message': 'Username is already taken. Please choose another.'
-            })
+            }, status=400)
 
         # 3. Create the account if both security checks pass
         user = User.objects.create_user(username=username, password=password)
@@ -142,7 +142,7 @@ def api_login(request):
             login(request, user)
             
             # Fetch the user's camera using your custom related_name
-            camera = user.cameras.first() 
+            camera = ESP32Camera.objects.filter(user=user).first()
             device_id = camera.device_id if camera else "No Camera Registered"
 
             return JsonResponse({

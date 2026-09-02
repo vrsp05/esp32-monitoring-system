@@ -5,38 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MiniSentinel.io</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; padding: 20px; }
-        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+        /* Soft, modern slate color palette */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; display: flex; min-height: 100vh; }
+        
+        /* Responsive Side Navigation */
+        .sidebar { width: 250px; background-color: #1e293b; padding: 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #334155; }
+        .sidebar h2 { color: #38bdf8; margin-top: 0; font-size: 24px; border-bottom: 1px solid #334155; padding-bottom: 15px; }
+        .sidebar a { color: #94a3b8; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
+        .sidebar a:hover { background-color: #334155; color: #ffffff; }
+        .sidebar a.active { background-color: #38bdf8; color: #0f172a; }
+        .logout-btn { margin-top: auto; padding: 10px; background-color: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        /* Main Dashboard Content */
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        h1 { border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0; color: #f8fafc; }
         .video-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
-        .video-card { background-color: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333; }
-        video { width: 320px; border-radius: 5px; outline: none; }
-        .timestamp { margin-top: 0; font-size: 14px; color: #888; margin-bottom: 10px; }
+        .video-card { background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        video { width: 320px; border-radius: 5px; outline: none; background: #000; }
+        
+        /* Mobile Phone Responsiveness */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: auto; border-right: none; border-bottom: 1px solid #334155; padding: 15px; }
+            .main-content { padding: 15px; }
+            video { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
-    <h1 style="display: flex; justify-content: space-between; align-items: center;">
-        Dashboard
-        <div style="font-size: 16px;">
-            <a href="vault.html" style="color: #2196F3; text-decoration: none; margin-right: 15px;">View Cloud Vault →</a>
-            <button onclick="logout()" style="background-color: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">Logout</button>
-        </div>
-    </h1>
-
-    <div class="setup-box" style="background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; margin-bottom: 20px; text-align: center;">
-        <h2>Hardware Setup</h2>
-        <p style="color: #888;">Paste this exact Device ID into your <code>ESP32_Capture_Node.ino</code> file:</p>
-        
-        <div style="background-color: #121212; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
-            <code id="device-id" style="color: #4CAF50; font-size: 18px;">b83a65e2-362d-416b-b61d-c52cf33a263a</code>
-        </div>
-        <br>
-        <button onclick="copyToClipboard()" style="padding: 10px 20px; background-color: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-            Copy to Clipboard
-        </button>
+    <div class="sidebar">
+        <h2>MiniSentinel</h2>
+        <a href="index.html" class="active">Dashboard</a>
+        <a href="#">Devices</a>
+        <a href="vault.html">Vault</a>
+        <a href="#">Profile</a>
+        <a href="#">Settings</a>
+        <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
 
-    <div class="video-grid" id="gallery"></div>
+    <div class="main-content">
+        <h1>Dashboard</h1>
+
+        <div class="setup-box" style="background-color: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 20px; text-align: center;">
+            <h2>Hardware Setup</h2>
+            <p style="color: #94a3b8;">Paste this exact Device ID into your <code>ESP32_Capture_Node.ino</code> file:</p>
+            <div style="background-color: #0f172a; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                <code id="device-id" style="color: #4ade80; font-size: 18px;">Loading...</code>
+            </div>
+            <br>
+            <button onclick="copyToClipboard()" style="padding: 10px 20px; background-color: #38bdf8; color: #0f172a; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                Copy to Clipboard
+            </button>
+        </div>
+
+        <div class="video-grid" id="gallery"></div>
+    </div>
 
     <script>
         // 1. Pull the user's info from local storage FIRST
@@ -194,6 +218,9 @@
             currentPage += direction;
             loadVideos();
         }
+
+    // 6. Load videos immediately when the page opens
+    loadVideos();
 
     // Automatically reload the videos every 15 seconds
     setInterval(loadVideos, 15000);

@@ -121,3 +121,40 @@ class VaultAndVideoTests(TestCase):
         # Verify the server firmly rejects the request
         self.assertEqual(response.status_code, 400)
         self.assertIn("Vault is full", data['message'])
+
+class MiniSentinelSecurityTests(TestCase):
+    def setUp(self):
+        # This runs before every test to set up a clean, isolated database
+        self.client = Client()
+        self.test_user = User.objects.create_user(username="general182", password="validpassword123")
+        self.camera = ESP32Camera.objects.create(user=self.test_user, device_id="fake-uuid-5678")
+
+    def test_signup_short_password(self):
+        response = self.client.post('/api/signup/', json.dumps({
+            'username': 'newuser',
+            'password': '123'
+        }), content_type='application/json')
+        
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('at least 5 characters', data['message'])
+
+    def test_signup_duplicate_username(self):
+        response = self.client.post('/api/signup/', json.dumps({
+            'username': 'general182',
+            'password': 'newpassword123'
+        }), content_type='application/json')
+        
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('already taken', data['message'])
+
+    def test_login_success_and_camera_fetch(self):
+        response = self.client.post('/api/login/', json.dumps({
+            'username': 'general182',
+            'password': 'validpassword123'
+        }), content_type='application/json')
+        
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['device_id'], 'fake-uuid-5678')
