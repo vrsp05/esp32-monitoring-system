@@ -81,7 +81,7 @@ def get_videos(request):
     
     # 2. Filter the database to ONLY grab this specific user's videos
     if username:
-        videos = VideoCapture.objects.filter(user__username=username).order_by('-timestamp')[:24]
+        videos = VideoCapture.objects.filter(user__username=username).order_by('-timestamp')
     else:
         videos = [] # Return nothing if no user is provided
     
@@ -210,7 +210,6 @@ def delete_video(request, video_id):
             
     return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
 
-@csrf_exempt
 @csrf_exempt
 def generate_camera_id(request):
     if request.method == 'POST':
