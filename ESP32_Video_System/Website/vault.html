@@ -5,66 +5,115 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Vault - MiniSentinel.io</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; padding: 20px; }
-        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; }
-        .nav-link { color: #4CAF50; text-decoration: none; font-size: 16px; align-self: center; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; display: flex; min-height: 100vh; }
+        
+        .sidebar { width: 250px; background-color: #1e293b; padding: 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #334155; }
+        .sidebar h2 { color: #38bdf8; margin-top: 0; font-size: 24px; border-bottom: 1px solid #334155; padding-bottom: 15px; }
+        .sidebar a { color: #94a3b8; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
+        .sidebar a:hover { background-color: #334155; color: #ffffff; }
+        .sidebar a.active { background-color: #38bdf8; color: #0f172a; }
+        .logout-btn { margin-top: auto; padding: 10px; background-color: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        h1 { border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0; color: #f8fafc; }
         .video-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
-        .video-card { background-color: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333; border-top: 3px solid #2196F3; }
-        video { width: 320px; border-radius: 5px; outline: none; }
-        .timestamp { margin-top: 0; font-size: 14px; color: #888; margin-bottom: 10px; }
+        .video-card { background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; border-top: 3px solid #38bdf8; }
+        video { width: 320px; border-radius: 5px; outline: none; background: #000; }
+        .timestamp { margin-top: 0; font-size: 14px; color: #94a3b8; margin-bottom: 10px; }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: auto; border-right: none; border-bottom: 1px solid #334155; padding: 15px; }
+            .main-content { padding: 15px; }
+            video { width: 100%; }
+        }
     </style>
 </head>
 <body>
+    <div class="sidebar">
+        <h2>MiniSentinel.io</h2>
+        <a href="index.html">Dashboard</a>
+        <a href="devices.html">Devices</a>
+        <a href="vault.html" class="active">Vault</a>
+        <a href="profile.html">Profile</a>
+        <a href="settings.html">Settings</a>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
 
-    <h1>
-        Your Cloud Vault (Max 10)
-        <a href="index.html" class="nav-link">← Back to Dashboard</a>
-    </h1>
-    <div class="video-grid" id="vault-gallery"></div>
+    <div class="main-content">
+        <h1>Your Cloud Vault</h1>
+        <div class="video-grid" id="vault-gallery"></div>
+    </div>
 
     <script>
         const currentUsername = localStorage.getItem('username');
         if (!currentUsername) window.location.href = 'login.html';
 
-        // Fetch all videos, but filter for ONLY cloud saved ones
-        fetch(`/api/videos/?user=${currentUsername}`)
-            .then(response => response.json())
-            .then(data => {
-                const gallery = document.getElementById('vault-gallery');
-                
-                // Filter the array to only keep videos saved to the vault
-                const vaultVideos = data.videos.filter(v => v.is_cloud_saved === true);
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
 
-                if (vaultVideos.length === 0) {
-                    gallery.innerHTML = "<p style='color: #888;'>Your vault is currently empty.</p>";
-                    return;
-                }
+        let currentPage = 1;
+        const videosPerPage = 5; 
 
-                vaultVideos.forEach(video => {
-                    const fullVideoUrl = video.url;
-                    // Grab just the filename from the URL for the delete prompt
-                    const fileName = video.url.split('/').pop(); 
+        function loadVault() {
+            fetch(`/api/videos/?user=${currentUsername}`)
+                .then(response => response.json())
+                .then(data => {
+                    const gallery = document.getElementById('vault-gallery');
+                    gallery.innerHTML = "";
                     
-                    gallery.innerHTML += `
-                        <div class="video-card">
-                            <p class="timestamp">Captured: ${video.timestamp}</p>
-                            <video controls preload="metadata">
-                                <source src="${fullVideoUrl}" type="video/mp4">
-                            </video>
-                            <button onclick="deleteVideo(${video.id}, '${fileName}')" style="margin-top: 10px; width: 100%; padding: 8px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                                🗑️ Delete Permanently
-                            </button>
-                        </div>
-                    `;
-                });
-            })
-            .catch(error => console.error('Error fetching vault:', error));
+                    const vaultVideos = data.videos.filter(v => v.is_cloud_saved === true);
+
+                    if (vaultVideos.length === 0) {
+                        gallery.innerHTML = "<p style='color: #94a3b8;'>Your vault is currently empty.</p>";
+                        return;
+                    }
+
+                    const totalPages = Math.ceil(vaultVideos.length / videosPerPage);
+                    const startIndex = (currentPage - 1) * videosPerPage;
+                    const pageVideos = vaultVideos.slice(startIndex, startIndex + videosPerPage);
+
+                    pageVideos.forEach(video => {
+                        const fileName = video.url.split('/').pop(); 
+                        gallery.innerHTML += `
+                            <div class="video-card">
+                                <p class="timestamp">Captured: ${video.timestamp}</p>
+                                <video controls preload="metadata">
+                                    <source src="${video.url}" type="video/mp4">
+                                </video>
+                                <button onclick="deleteVideo(${video.id}, '${fileName}')" style="margin-top: 10px; width: 100%; padding: 8px; background-color: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    🗑️ Delete Permanently
+                                </button>
+                            </div>
+                        `;
+                    });
+
+                    if (totalPages > 1) {
+                        gallery.innerHTML += `
+                            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 10px; background-color: #1e293b; border-radius: 8px; border: 1px solid #334155;">
+                                <button ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(-1)" style="padding: 10px 20px; background-color: ${currentPage === 1 ? '#334155' : '#38bdf8'}; color: ${currentPage === 1 ? '#94a3b8' : '#0f172a'}; border: none; border-radius: 5px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-weight: bold;">
+                                    ← Previous
+                                </button>
+                                <span style="font-weight: bold; color: #e2e8f0;">Page ${currentPage} of ${totalPages}</span>
+                                <button ${currentPage >= totalPages ? 'disabled' : ''} onclick="changePage(1)" style="padding: 10px 20px; background-color: ${currentPage >= totalPages ? '#334155' : '#38bdf8'}; color: ${currentPage >= totalPages ? '#94a3b8' : '#0f172a'}; border: none; border-radius: 5px; cursor: ${currentPage >= totalPages ? 'not-allowed' : 'pointer'}; font-weight: bold;">
+                                    Next →
+                                </button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => console.error('Error fetching vault:', error));
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            loadVault();
+        }
 
         function deleteVideo(videoId, videoName) {
-            // THE STRICT FAILSAFE MODAL
-            const userConfirmed = confirm(`Are you sure you want to delete ${videoName}?`);
-            
-            if (userConfirmed) {
+            if (confirm(`Are you sure you want to delete ${videoName}?`)) {
                 fetch(`/api/vault/delete/${videoId}/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -73,7 +122,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if(data.status === 'success') {
-                        location.reload(); // Refresh to remove the video from the screen
+                        if (currentPage > 1) currentPage = 1; 
+                        loadVault(); 
                     } else {
                         alert(data.message);
                     }
@@ -81,6 +131,8 @@
                 .catch(error => console.error('Error:', error));
             }
         }
+
+        loadVault();
     </script>
 </body>
 </html>
