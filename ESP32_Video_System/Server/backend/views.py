@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files import File
 from .models import ESP32Camera, VideoCapture
+from datetime import timedelta
 from django.utils import timezone
 import json
 from django.contrib.auth import authenticate, login
@@ -247,6 +248,55 @@ def generate_camera_id(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=405)
 
 def get_devices(request):
+    username = request.GET.get('user')
+    if not username:
+        return JsonResponse({"devices": []})
+    
+    try:
+        user = User.objects.get(username=username)
+        cameras = ESP32Camera.objects.filter(user=user).order_by('-date_added')
+        
+        device_list = []
+        for cam in cameras:
+            local_time = timezone.localtime(cam.date_added)
+            
+            # 1. Calculate Status (Active if video sent in last 2 hours)
+            latest_capture = cam.captures.order_by('-timestamp').first()
+            if latest_capture and (timezone.now() - latest_capture.timestamp) <= timedelta(hours=2):
+                status = "Active 🟢"
+            elif latest_capture:
+                status = "Offline 🔴"
+            else:
+                status = "Inactive ⚪"
+                
+            # 2. Calculate Physical Storage Space
+            total_bytes = sum(
+                os.path.getsize(cap.video_file.path) 
+                for cap in cam.captures.all() 
+                if cap.video_file and os.path.isfile(cap.video_file.path)
+            )
+            
+            if total_bytes == 0:
+                storage_space = "0 KB"
+            elif total_bytes < 1024 * 1024:
+                storage_space = f"{total_bytes / 1024:.1f} KB"
+            elif total_bytes < 1024 * 1024 * 1024:
+                storage_space = f"{total_bytes / (1024 * 1024):.1f} MB"
+            else:
+                storage_space = f"{total_bytes / (1024 * 1024 * 1024):.2f} GB"
+            
+            device_list.append({
+                "id": cam.id,
+                "device_id": cam.device_id,
+                "name": cam.name,
+                "status": status,
+                "storage_space": storage_space,
+                "date_added": local_time.strftime('%m/%d/%Y %I:%M %p'),
+                "video_count": cam.captures.count() 
+            })
+        return JsonResponse({"devices": device_list})
+    except User.DoesNotExist:
+        return JsonResponse({"devices": []})
     username = request.GET.get('user')
     if not username:
         return JsonResponse({"devices": []})
