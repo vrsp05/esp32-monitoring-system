@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/camera/create/', views.generate_camera_id, name='generate_camera'),
     path('api/devices/', views.get_devices, name='get_devices'),
     path('api/camera/delete/<int:device_id>/', views.delete_device, name='delete_device'),
+    path('api/camera/rename/<int:device_id>/', views.rename_device, name='rename_device'),
 ]
 
 if settings.DEBUG:

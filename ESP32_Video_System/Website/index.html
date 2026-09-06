@@ -37,7 +37,7 @@
     <div class="sidebar">
         <h2>MiniSentinel.io</h2>
         <a href="index.html" class="active">Dashboard</a>
-        <a href="#">Devices</a>
+        <a href="devices.html">Devices</a>
         <a href="vault.html">Vault</a>
         <a href="#">Profile</a>
         <a href="#">Settings</a>
@@ -101,7 +101,7 @@
         }
 
         let currentPage = 1;
-        const videosPerPage = 5;
+        const videosPerPage = 4;
 
         function loadVideos() {
             fetch(`/api/videos/?user=${currentUsername}`)

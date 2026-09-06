@@ -288,3 +288,25 @@ def delete_device(request, device_id):
             return JsonResponse({"status": "error", "message": "Device not found."}, status=404)
             
     return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def rename_device(request, device_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            new_name = data.get('new_name')
+            
+            if not new_name or len(new_name.strip()) == 0:
+                return JsonResponse({"status": "error", "message": "Name cannot be empty."}, status=400)
+            
+            # Locate the camera and ensure it belongs to the logged-in user
+            camera = ESP32Camera.objects.get(id=device_id, user__username=username)
+            camera.name = new_name.strip()
+            camera.save()
+            
+            return JsonResponse({"status": "success", "message": "Device renamed successfully."})
+        except ESP32Camera.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Device not found."}, status=404)
+            
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
