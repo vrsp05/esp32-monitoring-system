@@ -80,7 +80,12 @@
                         container.innerHTML += `
                             <div class="device-card">
                                 <div class="device-header">
-                                    <h3 style="margin: 0; color: #38bdf8;">${device.name}</h3>
+                                    <h3 style="margin: 0; color: #38bdf8;">
+                                        ${device.name} 
+                                        <button onclick="renameDevice('${device.id}', '${device.name}')" style="background-color: #f59e0b; color: #0f172a; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 10px; font-size: 12px;">
+                                            ✏️ Edit
+                                        </button>
+                                    </h3>
                                     <button class="btn-delete" onclick="deleteDevice('${device.id}')">Delete Device</button>
                                 </div>
                                 <div class="device-info">
@@ -125,6 +130,27 @@
                     if(data.status === 'success') loadDevices();
                     else alert(data.message);
                 });
+            }
+        }
+
+        function renameDevice(deviceId, currentName) {
+            const newName = prompt("Enter a new name for this camera:", currentName);
+            
+            if (newName && newName.trim() !== "" && newName !== currentName) {
+                fetch(`/api/camera/rename/${deviceId}/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: currentUsername, 
+                        new_name: newName.trim() 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.status === 'success') loadDevices();
+                    else alert(data.message);
+                })
+                .catch(error => console.error('Error renaming device:', error));
             }
         }
 
