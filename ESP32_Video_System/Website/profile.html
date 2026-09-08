@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - MiniSentinel.io</title>
+    <style>
+        /* Universal Light Earth Green Palette */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f4; color: #1f2937; margin: 0; display: flex; min-height: 100vh; }
+        
+        .sidebar { width: 250px; background-color: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #c8d6c6; box-shadow: 2px 0 5px rgba(0,0,0,0.02); }
+        .sidebar h2 { color: #2e7d32; margin-top: 0; font-size: 24px; border-bottom: 2px solid #e8ede6; padding-bottom: 15px; }
+        .sidebar a { color: #4b5563; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: bold; transition: 0.2s; }
+        .sidebar a:hover { background-color: #e8ede6; color: #1b5e20; }
+        .sidebar a.active { background-color: #2e7d32; color: #ffffff; }
+        .logout-btn { margin-top: auto; padding: 10px; background-color: #d32f2f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        h1 { color: #1b5e20; border-bottom: 2px solid #c8d6c6; padding-bottom: 10px; margin-top: 0; }
+        
+        /* Profile Specific Styles */
+        .profile-card { background-color: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid #c8d6c6; box-shadow: 0 4px 6px rgba(0,0,0,0.03); max-width: 500px; margin-bottom: 20px; }
+        .profile-card h3 { color: #1b5e20; margin-top: 0; border-bottom: 1px solid #e8ede6; padding-bottom: 10px; }
+        .danger-zone { border: 1px solid #ef5350; background-color: #fff5f5; }
+        .danger-zone h3 { color: #d32f2f; border-bottom: 1px solid #ffcdd2; }
+        
+        input { width: 100%; padding: 10px; margin: 10px 0 15px 0; border: 1px solid #c8d6c6; border-radius: 5px; background-color: #f9faf9; color: #1f2937; box-sizing: border-box; }
+        .btn-save { background-color: #2e7d32; color: white; border: none; padding: 10px 16px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-save:hover { background-color: #1b5e20; }
+        .btn-delete { background-color: #ef5350; color: white; border: none; padding: 10px 16px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-delete:hover { background-color: #d32f2f; }
+        
+        .msg { margin-top: 10px; font-size: 14px; display: none; font-weight: bold; }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: auto; border-right: none; border-bottom: 1px solid #c8d6c6; padding: 15px; }
+            .main-content { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>MiniSentinel.io</h2>
+        <a href="index.html">Dashboard</a>
+        <a href="devices.html">Devices</a>
+        <a href="vault.html">Vault</a>
+        <a href="profile.html" class="active">Profile</a>
+        <a href="settings.html">Settings</a>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="main-content">
+        <h1>Account Profile</h1>
+        
+        <div class="profile-card">
+            <h3>Update Credentials</h3>
+            <label style="color: #4b5563; font-weight: bold; font-size: 14px;">Current Username</label>
+            <input type="text" id="display-username" disabled style="background-color: #e8ede6; cursor: not-allowed;">
+            
+            <label style="color: #4b5563; font-weight: bold; font-size: 14px;">New Username (Optional)</label>
+            <input type="text" id="new-username" placeholder="Enter new username">
+            
+            <label style="color: #4b5563; font-weight: bold; font-size: 14px;">New Password (Optional)</label>
+            <input type="password" id="new-password" placeholder="Must be at least 5 characters">
+            
+            <button class="btn-save" onclick="updateProfile()">Save Changes</button>
+            <p id="update-msg" class="msg"></p>
+        </div>
+
+        <div class="profile-card danger-zone">
+            <h3>Danger Zone</h3>
+            <p style="color: #4b5563; font-size: 14px; margin-bottom: 15px;">Permanently delete your account, cameras, and all captured videos. This action cannot be undone.</p>
+            <button class="btn-delete" onclick="deleteAccount()">Delete Account</button>
+        </div>
+    </div>
+
+    <script>
+        const currentUsername = localStorage.getItem('username');
+        if (!currentUsername) window.location.href = 'login.html';
+        
+        document.getElementById('display-username').value = currentUsername;
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        function updateProfile() {
+            const newUsername = document.getElementById('new-username').value.trim();
+            const newPassword = document.getElementById('new-password').value.trim();
+            const msgBox = document.getElementById('update-msg');
+
+            if (!newUsername && !newPassword) {
+                msgBox.innerText = "No changes requested.";
+                msgBox.style.color = "#4b5563";
+                msgBox.style.display = "block";
+                return;
+            }
+
+            fetch('/api/profile/update/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    current_username: currentUsername,
+                    new_username: newUsername,
+                    new_password: newPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                msgBox.innerText = data.message;
+                msgBox.style.display = "block";
+                
+                if (data.status === 'success') {
+                    msgBox.style.color = "#2e7d32";
+                    if (data.new_username) {
+                        localStorage.setItem('username', data.new_username);
+                        document.getElementById('display-username').value = data.new_username;
+                        document.getElementById('new-username').value = "";
+                    }
+                    document.getElementById('new-password').value = "";
+                } else {
+                    msgBox.style.color = "#d32f2f";
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function deleteAccount() {
+            if (confirm("CRITICAL WARNING: This will permanently wipe your cameras, videos, and account data. Are you absolutely sure?")) {
+                if (confirm("Final verification: Type OK to proceed or Cancel to abort.")) {
+                    fetch('/api/profile/delete/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: currentUsername })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.status === 'success') {
+                            alert("Account successfully deleted.");
+                            logout();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            }
+        }
+    </script>
+</body>
+</html>
