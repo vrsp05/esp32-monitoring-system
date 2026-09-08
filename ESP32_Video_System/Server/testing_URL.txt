@@ -37,3 +37,5 @@ curl.exe -X POST http://100.98.214.116:8000/upload/ -H "X-Device-ID: b83a65e2-36
 
 
 Super user is needed to create Django database
+
+sudo systemctl restart esp32_server
