@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MiniSentinel.io</title>
+    <!-- THEME LOADER -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
     <style>
         /* Universal Light Earth Green Palette */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f4; color: #1f2937; margin: 0; display: flex; min-height: 100vh; }
@@ -54,6 +60,24 @@
             h1 { flex-direction: column; align-items: flex-start; gap: 10px; }
             video { width: 100%; }
         }
+
+        /* --- DARK MODE OVERRIDES --- */
+        html.dark-mode body { background-color: #0f172a; color: #e2e8f0; }
+        html.dark-mode .sidebar, html.dark-mode .settings-card, html.dark-mode .video-card, html.dark-mode .device-card, html.dark-mode .profile-card, html.dark-mode .login-box { background-color: #1e293b; border-color: #334155; box-shadow: none; }
+        html.dark-mode h1, html.dark-mode h2, html.dark-mode h3 { color: #38bdf8; border-color: #334155; }
+        html.dark-mode .sidebar h2 { border-color: #334155; }
+        html.dark-mode .sidebar a { color: #94a3b8; }
+        html.dark-mode .sidebar a:hover { background-color: #334155; color: #ffffff; }
+        html.dark-mode .sidebar a.active { background-color: #38bdf8; color: #0f172a; }
+        html.dark-mode input, html.dark-mode #display-username { background-color: #0f172a; color: white; border-color: #334155; }
+        html.dark-mode .timestamp, html.dark-mode .device-info p, html.dark-mode label, html.dark-mode .setting-row p { color: #94a3b8; }
+        html.dark-mode .device-info span { color: #e2e8f0; }
+        html.dark-mode .video-card { border-top-color: #38bdf8; }
+        html.dark-mode .danger-zone { background-color: #450a0a; border-color: #7f1d1d; }
+        html.dark-mode .danger-zone h3 { border-color: #7f1d1d; }
+        html.dark-mode .btn-toggle { background-color: #38bdf8; color: #0f172a; }
+        html.dark-mode .btn-toggle:hover { background-color: #0ea5e9; }
+
     </style>
 </head>
 <body>
@@ -63,8 +87,8 @@
         <a href="index.html" class="active">Dashboard</a>
         <a href="devices.html">Devices</a>
         <a href="vault.html">Vault</a>
-        <a href="#">Profile</a>
-        <a href="#">Settings</a>
+        <a href="profile.html">Profile</a>
+        <a href="settings.html">Settings</a>
         <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
 

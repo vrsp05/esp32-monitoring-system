@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - MiniSentinel.io</title>
+    
+    <!-- THEME LOADER: Placed in the head to prevent page flashing -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
+
+    <style>
+        /* Universal Light Earth Green Palette */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f4; color: #1f2937; margin: 0; display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #c8d6c6; box-shadow: 2px 0 5px rgba(0,0,0,0.02); }
+        .sidebar h2 { color: #2e7d32; margin-top: 0; font-size: 24px; border-bottom: 2px solid #e8ede6; padding-bottom: 15px; }
+        .sidebar a { color: #4b5563; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: bold; transition: 0.2s; }
+        .sidebar a:hover { background-color: #e8ede6; color: #1b5e20; }
+        .sidebar a.active { background-color: #2e7d32; color: #ffffff; }
+        .logout-btn { margin-top: auto; padding: 10px; background-color: #d32f2f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        h1 { color: #1b5e20; border-bottom: 2px solid #c8d6c6; padding-bottom: 10px; margin-top: 0; }
+        
+        .settings-card { background-color: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid #c8d6c6; box-shadow: 0 4px 6px rgba(0,0,0,0.03); max-width: 500px; margin-bottom: 20px; }
+        .settings-card h3 { color: #1b5e20; margin-top: 0; border-bottom: 1px solid #e8ede6; padding-bottom: 10px; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        
+        .btn-toggle { background-color: #2e7d32; color: white; border: none; padding: 10px 16px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-toggle:hover { background-color: #1b5e20; }
+
+        /* --- DARK MODE OVERRIDES --- */
+        html.dark-mode body { background-color: #0f172a; color: #e2e8f0; }
+        html.dark-mode .sidebar, html.dark-mode .settings-card, html.dark-mode .video-card, html.dark-mode .device-card, html.dark-mode .profile-card, html.dark-mode .login-box { background-color: #1e293b; border-color: #334155; box-shadow: none; }
+        html.dark-mode h1, html.dark-mode h2, html.dark-mode h3 { color: #38bdf8; border-color: #334155; }
+        html.dark-mode .sidebar h2 { border-color: #334155; }
+        html.dark-mode .sidebar a { color: #94a3b8; }
+        html.dark-mode .sidebar a:hover { background-color: #334155; color: #ffffff; }
+        html.dark-mode .sidebar a.active { background-color: #38bdf8; color: #0f172a; }
+        html.dark-mode input, html.dark-mode #display-username { background-color: #0f172a; color: white; border-color: #334155; }
+        html.dark-mode .timestamp, html.dark-mode .device-info p, html.dark-mode label, html.dark-mode .setting-row p { color: #94a3b8; }
+        html.dark-mode .device-info span { color: #e2e8f0; }
+        html.dark-mode .video-card { border-top-color: #38bdf8; }
+        html.dark-mode .danger-zone { background-color: #450a0a; border-color: #7f1d1d; }
+        html.dark-mode .danger-zone h3 { border-color: #7f1d1d; }
+        html.dark-mode .btn-toggle { background-color: #38bdf8; color: #0f172a; }
+        html.dark-mode .btn-toggle:hover { background-color: #0ea5e9; }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: auto; border-right: none; border-bottom: 1px solid #c8d6c6; padding: 15px; }
+            .main-content { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>MiniSentinel.io</h2>
+        <a href="index.html">Dashboard</a>
+        <a href="devices.html">Devices</a>
+        <a href="vault.html">Vault</a>
+        <a href="profile.html">Profile</a>
+        <a href="settings.html" class="active">Settings</a>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="main-content">
+        <h1>Application Settings</h1>
+        
+        <div class="settings-card">
+            <h3>Appearance</h3>
+            <div class="setting-row">
+                <div>
+                    <strong style="font-size: 16px;">Dark Mode</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #4b5563;">Switch to a low-light, slate-gray UI.</p>
+                </div>
+                <button id="theme-btn" class="btn-toggle" onclick="toggleTheme()">Enable Dark Mode</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const currentUsername = localStorage.getItem('username');
+        if (!currentUsername) window.location.href = 'login.html';
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        // Initialize the button text based on current state
+        const themeBtn = document.getElementById('theme-btn');
+        if (localStorage.getItem('theme') === 'dark') {
+            themeBtn.innerText = "Disable Dark Mode";
+        }
+
+        function toggleTheme() {
+            const htmlElement = document.documentElement;
+            
+            if (htmlElement.classList.contains('dark-mode')) {
+                // Switch to Light
+                htmlElement.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+                themeBtn.innerText = "Enable Dark Mode";
+            } else {
+                // Switch to Dark
+                htmlElement.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+                themeBtn.innerText = "Disable Dark Mode";
+            }
+        }
+    </script>
+</body>
+</html>
