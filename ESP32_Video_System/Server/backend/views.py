@@ -360,3 +360,55 @@ def rename_device(request, device_id):
             return JsonResponse({"status": "error", "message": "Device not found."}, status=404)
             
     return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def update_profile(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            current_username = data.get('current_username')
+            new_username = data.get('new_username')
+            new_password = data.get('new_password')
+
+            user = User.objects.get(username=current_username)
+
+            if new_username and new_username != current_username:
+                if User.objects.filter(username=new_username).exists():
+                    return JsonResponse({"status": "error", "message": "Username already taken."}, status=400)
+                user.username = new_username
+
+            if new_password:
+                if len(new_password) < 5:
+                    return JsonResponse({"status": "error", "message": "Password must be at least 5 characters."}, status=400)
+                user.set_password(new_password)
+
+            user.save()
+            return JsonResponse({"status": "success", "message": "Profile updated successfully!", "new_username": user.username})
+
+        except User.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "User not found."}, status=404)
+            
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
+
+@csrf_exempt
+def delete_account(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            user = User.objects.get(username=username)
+            
+            # 1. Delete all physical video files to prevent server bloat
+            videos = VideoCapture.objects.filter(user=user)
+            for video in videos:
+                if video.video_file and os.path.isfile(video.video_file.path):
+                    os.remove(video.video_file.path)
+                    
+            # 2. Delete the user (Django automatically deletes linked cameras and database records)
+            user.delete() 
+            return JsonResponse({"status": "success", "message": "Account permanently deleted."})
+            
+        except User.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "User not found."}, status=404)
+            
+    return JsonResponse({"status": "error", "message": "POST request required."}, status=405)
